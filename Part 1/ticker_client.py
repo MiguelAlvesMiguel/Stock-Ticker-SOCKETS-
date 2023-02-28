@@ -152,6 +152,7 @@ def validate_command(command):
         print("MISSING-ARGUMENTS")
         return False
     
+    
 
         
     
@@ -174,35 +175,54 @@ def main():
     6- Voltar a 1.
     """
 
+    
     # 1- Pedir ao utilizador um comando, através da prompt “comando > ”
     
     # 2- Ler uma string do utilizador no standard input
+    #6- Voltar a 1.
     while True:
-       command =  input("comando > ")
-       if validate_command(command.strip()):# 3- Validar o comando fornecido*
-           break
-        
-    # 4- Caso o comando pressuponha um pedido ao servidor:
-    # a. Ligar ao servidor;
-    server_connection.connect()
-    # b. Enviar para o servidor o comando respetivo através de uma string com um formato de mensagem específico;
-    command_args = command.split()
-    command = command_args[0]
-    if command == "SUBSCR":
-        stock_id = command_args[1]
-        time_limit = command_args[2]
-        message = "SUBSCR " + str(stock_id) + " " + str(time_limit) + " " + str(args.client_id)
-    elif command == "CANCEL":
+        while True:
+           command =  input("comando > ")
+           if validate_command(command.strip()):# 3- Validar o comando fornecido*
+               break
+           
+        # 4- Caso o comando pressuponha um pedido ao servidor:
+        # a. Ligar ao servidor;
+        server_connection.connect()
+        # b. Enviar para o servidor o comando respetivo através de uma string com um formato de mensagem específico;
+        command_args = command.split()
+        command = command_args[0]
+        if command == "SUBSCR":
+            stock_id = command_args[1]
+            time_limit = command_args[2]
+            message = "SUBSCR " + str(stock_id) + " " + str(time_limit) + " " + str(args.client_id)
+        elif command in ["CANCEL","STATUS"]:
+            stock_id = command_args[1]
+            message = command + " " + str(stock_id) + " " + str(args.client_id)
+        elif command == "STATIS":
+            if command_args[1] == "ALL":
+                message = "STATIS ALL"
+            else:
+                stock_id = command_args[2]
+                message = "STATIS L " + str(stock_id)
+        elif command == "INFO":
+            if command_args[1] == "M":
+                message = "INFO M"
+            elif command_args[1] == "K":
+                message = "INFO K"
+            message+= " " + str(args.client_id)
+
+        # c. (mandar e ) Receber a string de resposta do servidor;
+        response = server_connection.send_receive(message)
+        # d. Apresentar a resposta recebida;
+        print(response)
+        # e. Terminar a ligação com o servidor;
+        server_connection.close()
+        # 5- Caso o comando seja para processamento local, executá-lo:
+        #Executar o comando localmente:
+        #TODO
         
 
-        
-
-    # 
-
-
-        
- 
-    
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Stock Market Ticker Client")
