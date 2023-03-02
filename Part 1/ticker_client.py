@@ -9,7 +9,8 @@ Números de aluno:
 
 import socket as socket
 import argparse as argparse
-import sys as sys 
+import sys as sys
+import time 
 
 """
 Client for the Stock Market Ticker
@@ -84,7 +85,7 @@ se não possui gralhas na sintaxe especificada.
 
 
 #ALL COMMANDS THAT THE CLIENT CAN SEND TO THE SERVER (static)
-COMMANDS = ["SUBSCR", "CANCEL", "STATUS", "INFO", "STATIS"]
+COMMANDS = ["SUBSCR", "CANCEL", "STATUS", "INFO", "STATIS","SLEEP", "EXIT"]
 
 # Programa principal
 
@@ -153,10 +154,6 @@ def validate_command(command):
         return False
     
     
-
-        
-    
-
 def main():
     """
     Função principal do programa cliente.
@@ -180,7 +177,10 @@ def main():
     
     # 2- Ler uma string do utilizador no standard input
     #6- Voltar a 1.
+    command = ""
     while True:
+        if command == "EXIT":
+            break
         while True:
            command =  input("comando > ")
            if validate_command(command.strip()):# 3- Validar o comando fornecido*
@@ -211,6 +211,13 @@ def main():
             elif command_args[1] == "K":
                 message = "INFO K"
             message+= " " + str(args.client_id)
+        elif command == "SLEEP":
+            time.sleep(int(command_args[1]))
+            continue
+        elif command == "EXIT":
+            break
+    
+    
 
         # c. (mandar e ) Receber a string de resposta do servidor;
         response = server_connection.send_receive(message)

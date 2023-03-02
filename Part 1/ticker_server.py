@@ -6,7 +6,7 @@ Grupo:
 Números de aluno:
 """
 import random
-import socket as socket
+import socket as s
 import argparse as argparse
 import string
 import sys as sys
@@ -78,13 +78,13 @@ class stock_pool:
     """
     Abstrai um conjunto de recursos.
     """
-    def __init__(self, M,K, N):
+    def __init__(self, M,K,N):
         """
         Inicializa a classe com parâmetros para funcionamento futuro.
         """
         self.max_stocks = M
         self.max_stocks_per_client = K
-        self.max_subscriptions_per_stock = N
+        self.max_subscribers_per_stock = N
         self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos stocks que o cliente subscreveu e o tempo limite de subscrição
         #por examplo: {1: [(2, 10), (1, 20)], 2: [(2, 10), (3, 20)]}
         self.stocks = [stock(stock_number) for stock_number in range(M)]
@@ -92,14 +92,6 @@ class stock_pool:
     def clear_expired_subs(self):
         pass # Remover esta linha e fazer implementação da função
     def subscribe(self, resource_id, client_id, time_limit):
-        #verificar se o stock existe e se o cliente já não subscreveu o stock
-        """
-        Em geral, se o recurso existir, o servidor deverá registar o pedido, e retornar OK.
-    
-   
-    • 
-    • Se o recurso já tiver ativas N subscrições, o servidor deverá retornar NOK.
-        """
         #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
         if resource_id not in range(self.max_stocks):
             return "UNKNOWN-RESOURCE"
@@ -110,9 +102,8 @@ class stock_pool:
                 return "NOK"
         
          #verificar que o número de subscritores do stock não ficaria maior que o máximo permitido
-        if self.stocks[resource_id].get_number_of_subscribers()+1 > self.max_subscriptions_per_stock:
+        if self.stocks[resource_id].get_number_of_subscribers()+1 > self.max_subscribers_per_stock:
             return "NOK"
-
 
         #Se o pedido for para um recurso já subscrito pelo cliente, o novo Deadline deverá ser atualizado, 
         # e retornar OK.
@@ -122,7 +113,7 @@ class stock_pool:
                 #atualizar o tempo limite de subscrição 
                 for stock in self.subscriptions_per_client[client_id]:
                     if stock[0] == resource_id:
-                        stock[1] = time_limit
+                        stock[1] = time()+time_limit
                 return "OK"
             else:
                 self.add_subscriber(resource_id, client_id, time_limit)
@@ -187,18 +178,92 @@ class stock_pool:
         return len(self.stocks)
 ###############################################################################
 
+class client_connection:
+    """
+    Abstracts a connection to a TCP client. Implements methods for: establishing 
+    the connection; receving a message; sending a message; closing the connection.
+    """
 
+    def __init__(self, address, port):
+        """
+        Initializes the class with parameters for future operation.
+        """
+        self.address = address
+        self.port = port
+        self.sock = s.socket(s.AF_INET, s.SOCK_STREAM)
+        s.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)  
 
+    def connect(self):
+        """
+        Establishes the connection to the client.
+        """
+        self.sock.connect((self.address, self.port))
+    
+    def receive(self):
+        """
+        Receives a message from the client.
+        """
+        return self.sock.recv(1024).decode()
+    
+    def send(self, message):
+        """
+        Sends a message to the client.
+        """
+        self.sock.send(message.encode())
+    
+    def close(self):
+        """
+        Closes the connection to the client.
+        """
+        self.sock.close()
+    
+    def __repr__(self):
+        """
+        Returns a string representation of the class.
+        """
+        return "Client connection to {}:{}.".format(self.address, self.port)
+    
+    def __str__(self):
+        """
+        Returns a string representation of the class.
+        """
+        return self.__repr__()
+    
+###############################################################################
+#ALL COMMANDS THAT THE CLIENT CAN SEND TO THE SERVER (static)
+COMMANDS = ["SUBSCR", "CANCEL", "STATUS", "INFO", "STATIS","SLEEP", "EXIT"]
 def main():
-    # Ler argumentos da linha de comandos
-    # Criar instância de stock _pool
-    # Criar M recursos e adicionar à stock _pool
-    # Criar socket TCP/IP
-    # Associar socket à porta
-    # Escutar por novas ligações
-    # Processar pedidos de ligação
-    # Fechar socket
-    pass
+
+    """
+    Ciclo de operações é o seguinte:
+    1. Esperar um pedido de ligação;
+    2. Mostrar no ecrã informação sobre a ligação (IP/hostname e porto de origem do cliente);
+    3. Verificar se existem recursos cujo tempo de subscrição tenha expirado, e remover essas subscrições;
+    4. Receber uma mensagem com um pedido;
+    5. Processar esse pedido;
+    6. Responder ao cliente;
+    7. Fechar a ligação.
+    """
+    # Criar instância de stock_pool usando a classe acima
+    pool = stock_pool(args.max_stocks,args.max_subscriptions_per_client, args.max_subscribers_per_stock)
+    connection = client_connection(args.host, args.port)
+    #waiting for connection
+    connection.connect()
+    #receive message
+    message = connection.receive()
+    #process message (assume that the message is valid)
+    
+    
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     """
@@ -217,9 +282,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Ticker Server')
     parser.add_argument('host', type=str, help='IP or hostname where the server will provide the stocks')
     parser.add_argument('port', type=int, help='TCP port where the server will listen for connection requests')
-    parser.add_argument('stocks', type=int, help='Number of stocks that will be managed by the server')
-    parser.add_argument('max_stocks', type=int, help='Maximum number of stocks per client')
-    parser.add_argument('max_subscribers', type=int, help='Maximum number of subscribers per stock ')
+    parser.add_argument('max_stocks', type=int, help='Number of stocks that will be managed by the server')
+    parser.add_argument('max_subscriptions_per_client', type=int, help='Maximum number of stocks per client')
+    parser.add_argument('max_max_subscribers_per_stock', type=int, help='Maximum number of subscribers per stock ')
     args = parser.parse_args()
 
     main()
