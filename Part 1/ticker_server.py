@@ -60,6 +60,7 @@ class stock :
         self.subscribers = []
         self.value = random.randint(100,200)
 
+
     def subscribe(self, client_id, time_limit): #se é o server que gera tudo porque é que o time_limit é passado como argumento?
         self.subscribers.append(client_id)
         #after time_limit seconds, remove client_id from subscribers
@@ -69,11 +70,6 @@ class stock :
     def status(self, client_id):
         pass # Remover esta linha e fazer implementação da função
     
-    def get_number_of_subscribers(self):
-        return len(self.subscribers)
-    
-    def get_stock_id(self):
-        return self.stock_id
     
     def __repr__(self):
         return "R " + str(self.stock_id) + " " + str(self.subscribers) 
@@ -90,22 +86,48 @@ class stock_pool:
         self.max_stocks_per_client = K
         self.max_subscriptions_per_stock = N
         self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos stocks que o cliente subscreveu e o tempo limite de subscrição
-        #por examplo: {1: [(1, 10), (2, 20)], 2: [(1, 10), (2, 20)]}
+        #por examplo: {1: [(2, 10), (1, 20)], 2: [(2, 10), (3, 20)]}
         self.stocks = [stock(stock_number) for stock_number in range(M)]
 
     def clear_expired_subs(self):
         pass # Remover esta linha e fazer implementação da função
     def subscribe(self, resource_id, client_id, time_limit):
         #verificar se o stock existe e se o cliente já não subscreveu o stock
-        if resource_id in range(self.max_stocks) and client_id not in self.subscriptions_per_client.keys():
-            #verificar que o número de stocks que o cliente subscreveu não ficaria maior que o máximo permitido
-            if len(self.subscriptions_per_client[client_id])+1 < self.max_stocks_per_client:
-                #verificar que o número de subscritores do stock não ficaria maior que o máximo permitido
-                if self.stocks[resource_id].get_number_of_subscribers()+1 < self.max_subscriptions_per_stock:
-                    self.stocks[resource_id].subscribe(client_id, time()+time_limit)
-                    self.subscriptions_per_client[client_id].append((resource_id, time_limit))
-                    return True
+        """
+        Em geral, se o recurso existir, o servidor deverá registar o pedido, e retornar OK.
+    
+   
+    • 
+    • Se o recurso já tiver ativas N subscrições, o servidor deverá retornar NOK.
+        """
+        #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
+        if resource_id not in range(self.max_stocks):
+            return "UNKNOWN-RESOURCE"
+        
+        #verificar que o número de stocks que o cliente subscreveu não ficaria maior que o máximo permitido
+        if client_id not in self.subscriptions_per_client.keys():# evitar bug
+            if len(self.subscriptions_per_client[client_id])+1 > self.max_stocks_per_client:
+                return "NOK"
+        
+         #verificar que o número de subscritores do stock não ficaria maior que o máximo permitido
+        if self.stocks[resource_id].get_number_of_subscribers()+1 > self.max_subscriptions_per_stock:
+            return "NOK"
 
+
+        #Se o pedido for para um recurso já subscrito pelo cliente, o novo Deadline deverá ser atualizado, 
+        # e retornar OK.
+        if client_id in self.subscriptions_per_client.keys():
+            #verificar se o cliente já subscreveu o stock
+            if resource_id in [stock[0] for stock in self.subscriptions_per_client[client_id]]:
+                #atualizar o tempo limite de subscrição 
+                for stock in self.subscriptions_per_client[client_id]:
+                    if stock[0] == resource_id:
+                        stock[1] = time_limit
+                return "OK"
+            else:
+                self.add_subscriber(resource_id, client_id, time_limit)
+                return "OK"
+        
     def unsubscribe (self, resource_id, client_id):
         pass # Remover esta linha e fazer implementação da função
     def status(self, resource_id, client_id):
@@ -143,11 +165,8 @@ class stock_pool:
         return self.stocks[stock_id].subscribers
     def add_subscriber(self, stock_id, client_id,time_limit):
         #verificar se o cliente já não subscreveu o stock e se o número de subscrições do cliente não excede o máximo permitido e se o número de subscrições do stock não excede o máximo permitido em vários if's separados
-        if client_id not in self.subscriptions_per_client.keys() :
-            if len(self.subscriptions_per_client[client_id]) < self.max_stocks_per_client:
-                if len(self.stocks[stock_id].subscribers) < self.max_subscriptions_per_stock:
-                    self.stocks[stock_id].subscribers.append(client_id)
-                    self.subscriptions_per_client[client_id].append((stock_id, time_limit))
+        self.stocks[stock_id].subscribers.append(client_id)
+        self.subscriptions_per_client[client_id].append((stock_id, time()+time_limit))
 
         
     def remove_subscriber(self, stock_id, client_id):
