@@ -147,13 +147,25 @@ def validate_command(command):
         print("UNKNOWN-COMMAND")
         return False
     #Check if the command is SUBSCRIBE
-    elif command[0] == "SUBSCR":
+    elif command[0] == "SUBSCR" or command[0] == "INFOS" or (command[0] == "STATIS" and command[1] == "ALL"):
         noArguments=3
     else:
         nArguments=2
     if len(command) != noArguments:
         print("MISSING-ARGUMENTS")
         return False
+    
+    #INFOS must be followed by M or K
+    if command[0] == "INFOS":
+        if command[1] != "M" or command[1] != "K":
+            print("UNKNOWN-COMMAND")
+            return False
+    #STATIS must be followed by L or ALL
+    elif command[0] == "STATIS":
+        if command[1] != "L" or command[1] != "ALL":
+            print("UNKNOWN-COMMAND")
+            return False
+
     return True
     
 def main():
@@ -222,7 +234,7 @@ def main():
             continue
         
         
-        client_socket.send(message.encode())  # send message
+        client_socket.sendall(message.encode())  # send message
         # c. (mandar e ) Receber a string de resposta do servidor;
         response = client_socket.recv(1024).decode()  # receive responseive response
         # d. Apresentar a resposta recebida;
