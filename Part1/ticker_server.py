@@ -86,7 +86,7 @@ class stock_pool:
         self.max_stocks_per_client = K
         self.max_subscribers_per_stock = N
         self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos stocks que o cliente subscreveu e o tempo limite de subscrição
-        #por examplo: {1: [(2, 10), (1, 20)], 2: [(2, 10), (3, 20)]}
+        #por examplo: {1: [(2, time()+10), (3, time()+10)], 2: [(1, time()+10)]}
         self.stocks = [stock(stock_number) for stock_number in range(M)]
 
     def clear_expired_subs(self):
@@ -119,8 +119,29 @@ class stock_pool:
                 self.add_subscriber(resource_id, client_id, time_limit)
                 return "OK"
         
-    def unsubscribe (self, resource_id, client_id):
-        pass # Remover esta linha e fazer implementação da função
+    def unsubscribe (self, resource_id, client_id): #CANCEL
+        """
+        4.4.2 CANCEL
+        O comando CANCEL <recurso ID> remove uma subscrição ativa numa determinada ação/recurso para o 
+        cliente que está a enviar o pedido. 
+        • Em geral, se o recurso existir e estiver subscrito pelo cliente, o servidor deverá registar o pedido, e 
+        retornar OK.
+        • Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE.
+        • Se o pedido for para um recurso não subscrito pelo cliente, o servidor deverá retornar NOK.
+        """
+        #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
+        if resource_id not in range(self.max_stocks):
+            return "UNKNOWN-RESOURCE"
+        
+        #Se o pedido for para um recurso não subscrito pelo cliente, o servidor deverá retornar NOK.
+        if client_id not in self.subscriptions_per_client.keys():
+            return "NOK"
+        else:
+            if resource_id not in [stock[0] for stock in self.subscriptions_per_client[client_id]]:
+                return "NOK"
+            else:
+                self.remove_subscriber(resource_id, client_id)
+                return "OK"
     def status(self, resource_id, client_id):
         pass # Remover esta linha e fazer implementação da função
     def infos(self, option, client_id):
@@ -159,7 +180,6 @@ class stock_pool:
         self.stocks[stock_id].subscribers.append(client_id)
         self.subscriptions_per_client[client_id].append((stock_id, time()+time_limit))
 
-        
     def remove_subscriber(self, stock_id, client_id):
         #verificar se o cliente subscreveu o stock e se o cliente existe em vários if's separados
         if client_id in self.subscriptions_per_client.keys():
@@ -184,27 +204,60 @@ class client_connection:
     the connection; receving a message; sending a message; closing the connection.
     """
 
-    def __init__(self, address, port):
+    def __init__(self, host, port):
         """
         Initializes the class with parameters for future operation.
         """
-        self.address = address
-        self.port = port
+        self.host = host
+        self.port = int(port)
         self.sock = s.socket(s.AF_INET, s.SOCK_STREAM)
-        s.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)  
+        self.sock.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
 
-    def connect(self):
+    def listen(self,queue_size):
         """
-        Establishes the connection to the client.
+        Função que cria um socket TCP e estabelece a ligação ao servidor especificado
+        nos parâmetros.
+        Parâmetros:
+        host - endereço IP do servidor
+        port - número de porta do servidor
+        Retorna:
+        socket - socket TCP ligado ao servidor
+        Excepções:
+        socket.error - se ocorrer algum erro na criação do socket ou na ligação
         """
-        self.sock.connect((self.address, self.port))
+        self.sock.bind((self.host, int(self.port)))
+        self.sock.listen(queue_size)
+
+
+    def receive_all(self,socket, length):
+        """
+        Função que recebe uma quantidade de dados específica de uma socket.
+        Parâmetros:
+        socket - socket TCP ligada ao servidor
+        length - quantidade de dados a receber
+        Retorna:
+        data - dados recebidos
+        Excepções:
+        socket.error - se ocorrer algum erro na recepção dos dados
+        """
+
+        data = b''
+        while len(data) < length:
+            data += socket.recv(length - len(data))
     
-    def receive(self):
-        """
-        Receives a message from the client.
-        """
-        return self.sock.recv(1024).decode()
+        return data
     
+    def accept(self):
+        """
+        Accepts a connection from a client.
+        """
+        print("socket:",self.sock)
+        print("self.adress:",self.host+"self.port:",self.port)
+        self.sock, (self.host, self.port) = self.sock.accept()# What this line does?
+        print("ACCEPTED")
+        print("socket:",self.sock)
+        print("self.adress:",self.address+"self.port:",self.port)
+        
     def send(self, message):
         """
         Sends a message to the client.
@@ -246,25 +299,58 @@ def main():
     """
     # Criar instância de stock_pool usando a classe acima
     pool = stock_pool(args.max_stocks,args.max_subscriptions_per_client, args.max_subscribers_per_stock)
-    connection = client_connection(args.host, args.port)
-    #waiting for connection
-    connection.connect()
-    #receive message
-    message = connection.receive()
+    
+    # get the hostname
+    host = s.gethostname()
+    port = 5000  # initiate port no above 1024
+
+    server_socket = s.socket()  # get instance
+    # look closely. The bind() function takes tuple as argument
+    server_socket.bind((host, port))  # bind host address and port together
+
+    # configure how many client the server can listen simultaneously
+    server_socket.listen(1)
+    conn, address = server_socket.accept()  # accept new connection
+    print("Connection from: " + str(address))
+    while True:
+        # receive data stream. it won't accept data packet greater than 1024 bytes
+        data = conn.recv(1024).decode()
+        if not data:
+            # if data is not received break
+            break
+        print("from connected user: " + str(data))
+        data = input(' -> ')
+        conn.send(data.encode())  # send data to the client
+
+    conn.close()
+    
+    
+    
+    
+    #connection = client_connection(args.host, args.port)
+    ##waiting for connection
+    #connection.listen(1)
+    ##receive message
+    ##if connected to client then receive message
+    ##receive if connected to client
+    ## if message is valid then process message
+    ## if message is invalid then send error message
+    ## if message is exit then close connection
+    ## if message is sleep then sleep for 5 seconds
+    ## code:
+    #while True:
+    #    client, address = connection.accept()
+    #    print("Connected to client: {}".format(address))
+    #    #receive message
+    #    message = client.recv(1024).decode()
+    #    print("Received message: {}".format(message))
+    #    #process message
+
+
+
     #process message (assume that the message is valid)
     
     
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     """
     O servidor deverá receber os seguintes parâmetros pela linha de comandos, pela ordem apresentada:
@@ -284,7 +370,7 @@ if __name__ == "__main__":
     parser.add_argument('port', type=int, help='TCP port where the server will listen for connection requests')
     parser.add_argument('max_stocks', type=int, help='Number of stocks that will be managed by the server')
     parser.add_argument('max_subscriptions_per_client', type=int, help='Maximum number of stocks per client')
-    parser.add_argument('max_max_subscribers_per_stock', type=int, help='Maximum number of subscribers per stock ')
+    parser.add_argument('max_subscribers_per_stock', type=int, help='Maximum number of subscribers per stock ')
     args = parser.parse_args()
 
     main()
