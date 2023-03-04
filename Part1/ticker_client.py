@@ -101,24 +101,26 @@ class server_connection:
         """
         server_connection.address = address
         server_connection.port = port
-        server_connection.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Create a TCP socket
+        server_connection.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Create a TCP socket
+        
 
     def connect(self):
         """
         Estabelece a ligação ao servidor especificado na inicialização.
         """
         #Connect to the server without using the sock_utils library
-        self.sock.connect((self.address, self.port))
+        self.socket.connect((self.address, self.port))
 
     def send_receive(self, data):
         """
         Envia os dados contidos em data para a socket da ligação, e retorna
         a resposta recebida pela mesma socket.
         """
-        
-        self.sock.sendall(data.encode()) #Encode the data to bytes and send it to the server because the server is expecting bytes
-        response = self.sock.recv(1024)
-        self.sock.close()
+        print("Sending data to the server with the following format: ", data)
+        print("Sending to: ", self.address, ":", self.port, "")
+
+        self.socket.sendall(data.encode()) #Encode the data to bytes and send it to the server because the server is expecting bytes
+        response = self.socket.recv(1024)
         return response.decode()
     
     def close(self):
@@ -152,7 +154,7 @@ def validate_command(command):
     if len(command) != noArguments:
         print("MISSING-ARGUMENTS")
         return False
-    
+    return True
     
 def main():
     """
@@ -176,74 +178,61 @@ def main():
     port = 5000  # socket server port number
 
     client_socket = socket.socket()  # instantiate
-    client_socket.connect((host, port))  # connect to the server
-
-    message = input(" -> ")  # take input
-
-    while message.lower().strip() != 'bye':
-        client_socket.send(message.encode())  # send message
-        data = client_socket.recv(1024).decode()  # receive response
-
-        print('Received from server: ' + data)  # show in terminal
-
-        message = input(" -> ")  # again take input
-
-    client_socket.close()  # close the connection
-    # 1- Pedir ao utilizador um comando, através da prompt “comando > ”
+     #connect socket 
     
-    # 2- Ler uma string do utilizador no standard input
+  
+     # connect to the server
+    #1- Pedir ao utilizador um comando, através da prompt “comando > ”
+    #2- Ler uma string do utilizador no standard input
     #6- Voltar a 1.
-    #command = ""
-    #while True:
-    #    if command == "EXIT":
-    #        break
-    #    while True:
-    #       command =  input("comando > ")
-    #       if validate_command(command.strip()):# 3- Validar o comando fornecido*
-    #           break
-    #       
-    #    # 4- Caso o comando pressuponha um pedido ao servidor:
-    #    # a. Ligar ao servidor;
-    #    server_connection.connect()
-    #    # b. Enviar para o servidor o comando respetivo através de uma string com um formato de mensagem específico;
-    #    command_args = command.split()
-    #    command = command_args[0]
-    #    if command == "SUBSCR":
-    #        stock_id = command_args[1]
-    #        time_limit = command_args[2]
-    #        message = "SUBSCR " + str(stock_id) + " " + str(time_limit) + " " + str(args.client_id)
-    #    elif command in ["CANCEL","STATUS"]:
-    #        stock_id = command_args[1]
-    #        message = command + " " + str(stock_id) + " " + str(args.client_id)
-    #    elif command == "STATIS":
-    #        if command_args[1] == "ALL":
-    #            message = "STATIS ALL"
-    #        else:
-    #            stock_id = command_args[2]
-    #            message = "STATIS L " + str(stock_id)
-    #    elif command == "INFO":
-    #        if command_args[1] == "M":
-    #            message = "INFO M"
-    #        elif command_args[1] == "K":
-    #            message = "INFO K"
-    #        message+= " " + str(args.client_id)
-    #    elif command == "SLEEP":
-    #        time.sleep(int(command_args[1]))
-    #        continue
-    #    elif command == "EXIT":
-    #        break
-    #
-    #
-
-    # # c. (mandar e ) Receber a string de resposta do servidor;
-    # response = server_connection.send_receive(message)
-    # # d. Apresentar a resposta recebida;
-    # print(response)
-    # # e. Terminar a ligação com o servidor;
-    # server_connection.close()
-    # # 5- Caso o comando seja para processamento local, executá-lo:
-    # #Executar o comando localmente:
-    # #TODO
+    command = ""
+    while command!="EXIT":
+        while True:
+           command =  input("comando > ")
+           if validate_command(command.strip()):# 3- Validar o comando fornecido*
+               break
+           
+        # 4- Caso o comando pressuponha um pedido ao servidor:
+        # a. Ligar ao servidor;
+        client_socket.connect((host, port)) 
+        # b. Enviar para o servidor o comando respetivo através de uma string com um formato de mensagem específico;
+        command_args = command.split()
+        command = command_args[0]
+        if command == "SUBSCR":
+            stock_id = command_args[1]
+            time_limit = command_args[2]
+            message = "SUBSCR " + str(stock_id) + " " + str(time_limit) + " " + str(args.client_id)
+        elif command in ["CANCEL","STATUS"]:
+            stock_id = command_args[1]
+            message = command + " " + str(stock_id) + " " + str(args.client_id)
+        elif command == "STATIS":
+            if command_args[1] == "ALL":
+                message = "STATIS ALL"
+            else:
+                stock_id = command_args[2]
+                message = "STATIS L " + str(stock_id)
+        elif command == "INFO":
+            if command_args[1] == "M":
+                message = "INFO M"
+            elif command_args[1] == "K":
+                message = "INFO K"
+            message+= " " + str(args.client_id)
+        elif command == "SLEEP":
+            time.sleep(int(command_args[1]))
+            continue
+        
+        
+        client_socket.send(message.encode())  # send message
+        # c. (mandar e ) Receber a string de resposta do servidor;
+        response = client_socket.recv(1024).decode()  # receive responseive response
+        # d. Apresentar a resposta recebida;
+        print('Received from server: ' + response)  # show in terminal  # show in terminal
+        client_socket.close()  # close the connection
+  
+ 
+    # 5- Caso o comando seja para processamento local, executá-lo:
+    #Executar o comando localmente:
+    #TODO
         
 
 if __name__ == "__main__":
