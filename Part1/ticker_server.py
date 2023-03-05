@@ -12,7 +12,8 @@ import socket as s
 import argparse as argparse
 import string
 import sys as sys
-import time 
+import time
+import threading
 """
 Server for the resource Market Ticker
 =================================
@@ -28,9 +29,9 @@ class resource :
         self.value = random.randint(100,200)
 
 
-    def subscribe(self, client_id, time_limit): #se é o server que gera tudo porque é que o time_limit é passado como argumento?
+    def subscribe(self, client_id,time_limit): #se é o server que gera tudo porque é que otime.time()_limit é passado como argumento?
         self.subscribers.append(client_id)
-        #after time_limit seconds, remove client_id from subscribers
+        #aftertime.time()_limit seconds, remove client_id from subscribers
 
     def unsubscribe (self, client_id):
         self.subscribers.remove(client_id)
@@ -70,43 +71,48 @@ class resource_pool:
         self.max_resources = M
         self.max_resources_per_client = K
         self.max_subscribers_per_resource = N
-        self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos resources que o cliente subscreveu e o tempo limite de subscrição
-        #por examplo: {1: [(2, time()+10), (3, time()+10)], 2: [(1, time()+10)]}
+        self.dic_clientID_subscriptions = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos resources que o cliente subscreveu e o tempo limite de subscrição
+        #por examplo: {1: [(2,time.time()()+10), (3,time.time()()+10)], 2: [(1,time.time()()+10)]}
         self.resources = [resource(resource_number) for resource_number in range(M)]
 
     def clear_expired_subs(self):
-        for client_id in self.subscriptions_per_client.keys():
-            for resource in self.subscriptions_per_client[client_id]:
-                if time() > resource[1]:
-                    self.unsubscribe(resource[0], client_id)
+        for client_id in self.dic_clientID_subscriptions.keys():
+            for resource in self.dic_clientID_subscriptions[client_id]:
+                if time.time() > resource[1]:
+                    self.unsubscribe(int(resource[0]), client_id)
 
-    def subscribe(self, resource_id, client_id, time_limit):
+    def subscribe(self, resource_id, client_id,time_limit):
         #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
-        if resource_id not in range(self.max_resources):
+        print("Checking if resource exists...")
+        print("resource_id: ", resource_id)
+        print("max_resources: ", self.max_resources)
+        if int(resource_id) not in range(1,self.max_resources+1):
+            print("Resource doesn't exist because resource_id is not in range(max_resources).")
+
             return "UNKNOWN-RESOURCE"
         
         #verificar que o número de resources que o cliente subscreveu não ficaria maior que o máximo permitido
-        if client_id not in self.subscriptions_per_client.keys():# evitar bug
-            if len(self.subscriptions_per_client[client_id])+1 > self.max_resources_per_client:
+        if client_id in self.dic_clientID_subscriptions.keys():# evitar bug
+            if len(self.dic_clientID_subscriptions[client_id])+1 > self.max_resources_per_client:
                 return "NOK"
         
          #verificar que o número de subscritores do resource não ficaria maior que o máximo permitido
-        if self.resources[resource_id].get_number_of_subscribers()+1 > self.max_subscribers_per_resource:
+        if self.get_subscribers_count(int(resource_id))+1 > self.max_subscribers_per_resource:
             return "NOK"
 
         #Se o pedido for para um recurso já subscrito pelo cliente, o novo Deadline deverá ser atualizado, 
         # e retornar OK.
-        if client_id in self.subscriptions_per_client.keys():
+        if client_id in self.dic_clientID_subscriptions.keys():
             #verificar se o cliente já subscreveu o resource
-            if resource_id in [resource[0] for resource in self.subscriptions_per_client[client_id]]:
+            if int(resource_id) in [int(resource[0]) for resource in self.dic_clientID_subscriptions[client_id]]:
                 #atualizar o tempo limite de subscrição 
-                for resource in self.subscriptions_per_client[client_id]:
+                for resource in self.dic_clientID_subscriptions[client_id]:
                     if resource[0] == resource_id:
-                        resource[1] = time()+time_limit
+                        resource[1] =time.time()+time_limit
                 return "OK"
-            else:
-                self.add_subscriber(resource_id, client_id, time_limit)
-                return "OK"
+            
+        self.add_subscriber(int(resource_id), int(client_id),time_limit)
+        return "OK"
         
     def unsubscribe (self, resource_id, client_id): #CANCEL
         """
@@ -122,10 +128,10 @@ class resource_pool:
             return "UNKNOWN-RESOURCE"
         
         #Se o pedido for para um recurso não subscrito pelo cliente, o servidor deverá retornar NOK.
-        if client_id not in self.subscriptions_per_client.keys():
+        if client_id not in self.dic_clientID_subscriptions.keys():
             return "NOK"
         else:
-            if resource_id not in [resource[0] for resource in self.subscriptions_per_client[client_id]]:
+            if resource_id not in [resource[0] for resource in self.dic_clientID_subscriptions[client_id]]:
                 return "NOK"
             else:
                 self.remove_subscriber(resource_id, client_id)
@@ -150,13 +156,13 @@ class resource_pool:
         """
         if option == "M":
             # Se o cliente não tiver subscrito nenhum resource, retornar "EMPTY"
-            if client_id not in self.subscriptions_per_client.keys():
+            if client_id not in self.dic_clientID_subscriptions.keys():
                 return "EMPTY"
             #Extração dos ids dos resources que o cliente subscreveu
-            return [resource[0] for resource in self.subscriptions_per_client[client_id]]
+            return [resource[0] for resource in self.dic_clientID_subscriptions[client_id]]
 
         elif option == "K":
-            return self.max_resources_per_client - len(self.subscriptions_per_client[client_id])
+            return self.max_resources_per_client - len(self.dic_clientID_subscriptions[client_id])
         
     def statis(self, option, resource_id):
         """
@@ -183,7 +189,7 @@ class resource_pool:
             if resource_id not in range(self.max_resources):
                 return "UNKNOWN-RESOURCE"
             else:
-                return self.resources[resource_id].get_number_of_subscribers()
+                return self.get_subscribers_count(int(resource_id))
         else:
             #• STATIS ALL – é utilizado para obter uma visão geral do estado do serviço de gestão de ações e seus 
             #subscritores. O servidor deverá retornar uma string formada por uma linha por cada recurso no 
@@ -232,14 +238,17 @@ class resource_pool:
     def add_subscriber(self, resource_id, client_id,time_limit):
         #verificar se o cliente já não subscreveu o resource e se o número de subscrições do cliente não excede o máximo permitido e se o número de subscrições do resource não excede o máximo permitido em vários if's separados
         self.resources[resource_id].subscribers.append(client_id)
-        self.subscriptions_per_client[client_id].append((resource_id, time()+time_limit))
-
+        if client_id not in self.dic_clientID_subscriptions.keys():
+            self.dic_clientID_subscriptions[str(client_id)] = [(str(resource_id), time.time()+time_limit)] 
+        else:
+            self.dic_clientID_subscriptions[str(client_id)].append((str(resource_id),time.time()+time_limit))
+       
     def remove_subscriber(self, resource_id, client_id):
         #verificar se o cliente subscreveu o resource e se o cliente existe em vários if's separados
-        if client_id in self.subscriptions_per_client.keys():
-            if resource_id in self.subscriptions_per_client[client_id]:
+        if str(client_id) in self.dic_clientID_subscriptions.keys():
+            if resource_id in self.dic_clientID_subscriptions[client_id]:
                 self.resources[resource_id].subscribers.remove(client_id)
-                self.subscriptions_per_client[client_id].remove(resource_id)
+                self.dic_clientID_subscriptions[client_id].remove(resource_id)
                 
     def get_subscribers_count(self, resource_id):
         return len(self.resources[resource_id].subscribers)
@@ -347,13 +356,15 @@ def processCommand(command,pool): #The command is already validated
     Retorna:
     A resposta a enviar ao cliente
     """
-    command = command.split() #split the command into a list
+    #command = command.split() #split the command into a list
     if command[0] == "SUBSCR":
+        print("N of args:",len(command))
+        print("Args:",command)
         return pool.subscribe(command[1],command[2],int(command[3]))
     if command[0] == "CANCEL":
         return pool.unsubscribe(command[1],command[2])
     if command[0] == "STATUS":
-        return pool.get_subscribers_count(command[1])
+        return pool.get_subscribers_count(int(command[1]))
         
 def main():
 
@@ -371,13 +382,7 @@ def main():
     pool = resource_pool(args.max_resources,args.max_subscriptions_per_client, args.max_subscribers_per_resource)
 
     # get the hostname
-    host = s.gethostname()
-    port = 5000  # initiate port no above 1024
-
-    #ISTO SE CALHAR È DENTRO DO LOOP
-    server_socket = s.socket()  # get instance
-    # look closely. The bind() function takes tuple as argument
-    server_socket.bind((host, port))  # bind host address and port together
+   
 
     """
     1. Esperar um pedido de ligação;
@@ -388,11 +393,18 @@ def main():
     6. Responder ao cliente;
     7. Fechar a ligação.
     """
+    host = s.gethostname()
+    port = 9999 
+    #ISTO SE CALHAR È DENTRO DO LOOP
+    server_socket = s.socket()  # get instance
+    # look closely. The bind() function takes tuple as argument
+    server_socket.bind((host, port))  # bind host address and port together
+    # configure how many client the server can listen simultaneously
+    server_socket.listen(10)
     while True:
-        # configure how many client the server can listen simultaneously
-        server_socket.listen(10)
+ # initiate port no above 1024
         conn, address = server_socket.accept()  # accept new connection #conn is a socket object
-        print("Connection from: " + str(address), "to port: " + str(port))
+        #print("Connection from: " + str(address), "to port: " + str(port))
         # receive data stream. it won't accept data packet greater than 1024 bytes
         #Verificar se existem recursos cujo tempo de subscrição tenha expirado, e remover essas subscrições;
         pool.clear_expired_subs()
@@ -400,9 +412,9 @@ def main():
         if not received:
             # if data is not received break
             break
-        print("from connected user: " + str(received))
-        print("Processing message...")
-        response=processCommand(received.split()[0],pool)
+        #print("from connected user: " + str(received))
+        #print("Processing message...")
+        response=processCommand(received.split(),pool)
         #send OK to client
         conn.sendall(response.encode())
         #close connection

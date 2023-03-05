@@ -151,8 +151,11 @@ def validate_command(command):
     #Check if the command is SUBSCRIBE
     elif command[0] == "SUBSCR" or command[0] == "INFOS" or (command[0] == "STATIS" and command[1] == "ALL"):
         noArguments=3
+    elif command[0]=="EXIT":
+        noArguments=1
     else:
-        nArguments=2
+        noArguments=2
+    
     if len(command) != noArguments:
         print("MISSING-ARGUMENTS")
         return False
