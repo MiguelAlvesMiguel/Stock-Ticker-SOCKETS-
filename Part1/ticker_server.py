@@ -12,13 +12,13 @@ import string
 import sys as sys
 import time 
 """
-Server for the Stock Market Ticker
+Server for the resource Market Ticker
 =================================
-Server for the Stock Market Ticker. It receives a connection from a client and receives a word from it and prints it.
+Server for the resource Market Ticker. It receives a connection from a client and receives a word from it and prints it.
 """
-class stock :
-    def __init__(self, stock_id):
-        self.stock_id = stock_id
+class resource :
+    def __init__(self, resource_id):
+        self.resource_id = resource_id
         # Gerar aleatoriamente uma string com 7 carateres
         self.name= ''.join(random.choice(string.ascii_uppercase) for _ in range(7))
         self.symbol = self.name[:3]
@@ -33,8 +33,8 @@ class stock :
     def unsubscribe (self, client_id):
         self.subscribers.remove(client_id)
     def status(self, client_id):
-        #Ver se o stock existe
-        if self.stock_id not in range(self.max_stocks):
+        #Ver se o resource existe
+        if self.resource_id not in range(self.max_resources):
             return "UNKNOWN-RESOURCE"
         #Ver se o cliente está subscrito
         if client_id in self.subscribers:
@@ -53,11 +53,11 @@ class stock :
         se não houver clientes subscritos.
         """
         if len(self.subscribers) == 0:
-            return f"R {self.stock_id} {len(self.subscribers)}"
+            return f"R {self.resource_id} {len(self.subscribers)}"
         else:
-            return f"R {self.stock_id} {len(self.subscribers)} {self.subscribers}"
+            return f"R {self.resource_id} {len(self.subscribers)} {self.subscribers}"
 
-class stock_pool:
+class resource_pool:
     """
     Abstrai um conjunto de recursos.
     """
@@ -65,42 +65,42 @@ class stock_pool:
         """
         Inicializa a classe com parâmetros para funcionamento futuro.
         """
-        self.max_stocks = M
-        self.max_stocks_per_client = K
-        self.max_subscribers_per_stock = N
-        self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos stocks que o cliente subscreveu e o tempo limite de subscrição
+        self.max_resources = M
+        self.max_resources_per_client = K
+        self.max_subscribers_per_resource = N
+        self.subscriptions_per_client = {} #subscriptions_per_client é um dicionário que tem como chave o id do cliente e como valor uma lista com os ids dos resources que o cliente subscreveu e o tempo limite de subscrição
         #por examplo: {1: [(2, time()+10), (3, time()+10)], 2: [(1, time()+10)]}
-        self.stocks = [stock(stock_number) for stock_number in range(M)]
+        self.resources = [resource(resource_number) for resource_number in range(M)]
 
     def clear_expired_subs(self):
         for client_id in self.subscriptions_per_client.keys():
-            for stock in self.subscriptions_per_client[client_id]:
-                if time() > stock[1]:
-                    self.unsubscribe(stock[0], client_id)
+            for resource in self.subscriptions_per_client[client_id]:
+                if time() > resource[1]:
+                    self.unsubscribe(resource[0], client_id)
 
     def subscribe(self, resource_id, client_id, time_limit):
         #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
-        if resource_id not in range(self.max_stocks):
+        if resource_id not in range(self.max_resources):
             return "UNKNOWN-RESOURCE"
         
-        #verificar que o número de stocks que o cliente subscreveu não ficaria maior que o máximo permitido
+        #verificar que o número de resources que o cliente subscreveu não ficaria maior que o máximo permitido
         if client_id not in self.subscriptions_per_client.keys():# evitar bug
-            if len(self.subscriptions_per_client[client_id])+1 > self.max_stocks_per_client:
+            if len(self.subscriptions_per_client[client_id])+1 > self.max_resources_per_client:
                 return "NOK"
         
-         #verificar que o número de subscritores do stock não ficaria maior que o máximo permitido
-        if self.stocks[resource_id].get_number_of_subscribers()+1 > self.max_subscribers_per_stock:
+         #verificar que o número de subscritores do resource não ficaria maior que o máximo permitido
+        if self.resources[resource_id].get_number_of_subscribers()+1 > self.max_subscribers_per_resource:
             return "NOK"
 
         #Se o pedido for para um recurso já subscrito pelo cliente, o novo Deadline deverá ser atualizado, 
         # e retornar OK.
         if client_id in self.subscriptions_per_client.keys():
-            #verificar se o cliente já subscreveu o stock
-            if resource_id in [stock[0] for stock in self.subscriptions_per_client[client_id]]:
+            #verificar se o cliente já subscreveu o resource
+            if resource_id in [resource[0] for resource in self.subscriptions_per_client[client_id]]:
                 #atualizar o tempo limite de subscrição 
-                for stock in self.subscriptions_per_client[client_id]:
-                    if stock[0] == resource_id:
-                        stock[1] = time()+time_limit
+                for resource in self.subscriptions_per_client[client_id]:
+                    if resource[0] == resource_id:
+                        resource[1] = time()+time_limit
                 return "OK"
             else:
                 self.add_subscriber(resource_id, client_id, time_limit)
@@ -116,14 +116,14 @@ class stock_pool:
         • Se o pedido for para um recurso não subscrito pelo cliente, o servidor deverá retornar NOK.
         """
         #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
-        if resource_id not in range(self.max_stocks):
+        if resource_id not in range(self.max_resources):
             return "UNKNOWN-RESOURCE"
         
         #Se o pedido for para um recurso não subscrito pelo cliente, o servidor deverá retornar NOK.
         if client_id not in self.subscriptions_per_client.keys():
             return "NOK"
         else:
-            if resource_id not in [stock[0] for stock in self.subscriptions_per_client[client_id]]:
+            if resource_id not in [resource[0] for resource in self.subscriptions_per_client[client_id]]:
                 return "NOK"
             else:
                 self.remove_subscriber(resource_id, client_id)
@@ -135,10 +135,10 @@ class stock_pool:
         • Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE.
         """
         #Se o recurso não existir, o servidor deverá retornar UNKNOWN-RESOURCE
-        if resource_id not in range(self.max_stocks):
+        if resource_id not in range(self.max_resources):
             return "UNKNOWN-RESOURCE" 
         else:
-            return self.stocks[resource_id].status(client_id)
+            return self.resources[resource_id].status(client_id)
         
     def infos(self, option, client_id):
         """
@@ -147,14 +147,14 @@ class stock_pool:
         • INFOS K – deverá retornar o <número total de ações a que o cliente ainda pode subscrever> 
         """
         if option == "M":
-            # Se o cliente não tiver subscrito nenhum stock, retornar "EMPTY"
+            # Se o cliente não tiver subscrito nenhum resource, retornar "EMPTY"
             if client_id not in self.subscriptions_per_client.keys():
                 return "EMPTY"
-            #Extração dos ids dos stocks que o cliente subscreveu
-            return [stock[0] for stock in self.subscriptions_per_client[client_id]]
+            #Extração dos ids dos resources que o cliente subscreveu
+            return [resource[0] for resource in self.subscriptions_per_client[client_id]]
 
         elif option == "K":
-            return self.max_stocks_per_client - len(self.subscriptions_per_client[client_id])
+            return self.max_resources_per_client - len(self.subscriptions_per_client[client_id])
         
     def statis(self, option, resource_id):
         """
@@ -178,10 +178,10 @@ class stock_pool:
         #• STATIS L <recurso ID> – deverá retornar o número de subscritores do recurso em questão.
         if option == 'L':
             #N sei se isto é preciso
-            if resource_id not in range(self.max_stocks):
+            if resource_id not in range(self.max_resources):
                 return "UNKNOWN-RESOURCE"
             else:
-                return self.stocks[resource_id].get_number_of_subscribers()
+                return self.resources[resource_id].get_number_of_subscribers()
         else:
             #• STATIS ALL – é utilizado para obter uma visão geral do estado do serviço de gestão de ações e seus 
             #subscritores. O servidor deverá retornar uma string formada por uma linha por cada recurso no 
@@ -192,8 +192,8 @@ class stock_pool:
             #4. A lista de clientes subscritos (ordenada crescentemente pelo cliente-ID). Não apresentar nada,
             #se não houver clientes subscritos.
             output = ""
-            for stock in self.stocks:
-                output += stock.__repr__()
+            for resource in self.resources:
+                output += resource.__repr__()
             return output
 
 
@@ -212,42 +212,42 @@ class stock_pool:
     de um recurso; obter o número de subscritores de todos os recursos; 
     obter o número de recursos.
     """
-    def add_stock(self, stock):
-        #verificar se o stock já existe e se o número de stocks não excede o máximo permitido
-        if stock not in self.stocks and len(self.stocks) < self.max_stocks:
-            self.stocks.append(stock)
-    def remove_stock(self, stock_id):
-        #remover o stock com o id stock_id
-        self.stocks.remove(stock_id)
+    def add_resource(self, resource):
+        #verificar se o resource já existe e se o número de resources não excede o máximo permitido
+        if resource not in self.resources and len(self.resources) < self.max_resources:
+            self.resources.append(resource)
+    def remove_resource(self, resource_id):
+        #remover o resource com o id resource_id
+        self.resources.remove(resource_id)
 
-    def get_stock(self, stock_id):
-        #retornar o stock com o id stock_id
-        return self.stocks[stock_id]
-    def get_stocks(self):
-        return self.stocks
-    def get_subscribers(self, stock_id):
-        return self.stocks[stock_id].subscribers
-    def add_subscriber(self, stock_id, client_id,time_limit):
-        #verificar se o cliente já não subscreveu o stock e se o número de subscrições do cliente não excede o máximo permitido e se o número de subscrições do stock não excede o máximo permitido em vários if's separados
-        self.stocks[stock_id].subscribers.append(client_id)
-        self.subscriptions_per_client[client_id].append((stock_id, time()+time_limit))
+    def get_resource(self, resource_id):
+        #retornar o resource com o id resource_id
+        return self.resources[resource_id]
+    def get_resources(self):
+        return self.resources
+    def get_subscribers(self, resource_id):
+        return self.resources[resource_id].subscribers
+    def add_subscriber(self, resource_id, client_id,time_limit):
+        #verificar se o cliente já não subscreveu o resource e se o número de subscrições do cliente não excede o máximo permitido e se o número de subscrições do resource não excede o máximo permitido em vários if's separados
+        self.resources[resource_id].subscribers.append(client_id)
+        self.subscriptions_per_client[client_id].append((resource_id, time()+time_limit))
 
-    def remove_subscriber(self, stock_id, client_id):
-        #verificar se o cliente subscreveu o stock e se o cliente existe em vários if's separados
+    def remove_subscriber(self, resource_id, client_id):
+        #verificar se o cliente subscreveu o resource e se o cliente existe em vários if's separados
         if client_id in self.subscriptions_per_client.keys():
-            if stock_id in self.subscriptions_per_client[client_id]:
-                self.stocks[stock_id].subscribers.remove(client_id)
-                self.subscriptions_per_client[client_id].remove(stock_id)
+            if resource_id in self.subscriptions_per_client[client_id]:
+                self.resources[resource_id].subscribers.remove(client_id)
+                self.subscriptions_per_client[client_id].remove(resource_id)
                 
-    def get_subscribers_count(self, stock_id):
-        return len(self.stocks[stock_id].subscribers)
+    def get_subscribers_count(self, resource_id):
+        return len(self.resources[resource_id].subscribers)
     def get_total_subscribers_count(self):
         total_subscribers = 0
-        for stock in self.stocks:
-            total_subscribers += len(stock.subscribers)
+        for resource in self.resources:
+            total_subscribers += len(resource.subscribers)
         return total_subscribers
-    def get_stocks_count(self):
-        return len(self.stocks)
+    def get_resources_count(self):
+        return len(self.resources)
 ###############################################################################
 
 class client_connection:
@@ -365,8 +365,8 @@ def main():
     6. Responder ao cliente;
     7. Fechar a ligação.
     """
-    # Criar instância de stock_pool usando a classe acima
-    pool = stock_pool(args.max_stocks,args.max_subscriptions_per_client, args.max_subscribers_per_stock)
+    # Criar instância de resource_pool usando a classe acima
+    pool = resource_pool(args.max_resources,args.max_subscriptions_per_client, args.max_subscribers_per_resource)
 
     # get the hostname
     host = s.gethostname()
@@ -444,11 +444,11 @@ if __name__ == "__main__":
     """
     #use argparse
     parser = argparse.ArgumentParser(description='Ticker Server')
-    parser.add_argument('host', type=str, help='IP or hostname where the server will provide the stocks')
+    parser.add_argument('host', type=str, help='IP or hostname where the server will provide the resources')
     parser.add_argument('port', type=int, help='TCP port where the server will listen for connection requests')
-    parser.add_argument('max_stocks', type=int, help='Number of stocks that will be managed by the server')
-    parser.add_argument('max_subscriptions_per_client', type=int, help='Maximum number of stocks per client')
-    parser.add_argument('max_subscribers_per_stock', type=int, help='Maximum number of subscribers per stock ')
+    parser.add_argument('max_resources', type=int, help='Number of resources that will be managed by the server')
+    parser.add_argument('max_subscriptions_per_client', type=int, help='Maximum number of resources per client')
+    parser.add_argument('max_subscribers_per_resource', type=int, help='Maximum number of subscribers per resource ')
     args = parser.parse_args()
 
     main()
