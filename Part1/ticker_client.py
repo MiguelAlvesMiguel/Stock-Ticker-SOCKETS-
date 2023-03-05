@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Aplicações Distribuídas - Projeto 1 - ticker_client.py
-Grupo:
+Grupo:19
 Números de aluno:
+Henrique Venâncio-58618
+Miguel Miguel-58628
 """
 # Zona para fazer imports
 

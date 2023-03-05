@@ -1,9 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Aplicações Distribuídas - Projeto 1 - ticker_server.py
-Grupo:
+Aplicações Distribuídas - Projeto 1 - ticker_client.py
+Grupo:19
 Números de aluno:
+Henrique Venâncio-58618
+Miguel Miguel-58628
 """
 import random
 import socket as s
